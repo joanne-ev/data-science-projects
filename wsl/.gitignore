@@ -1,0 +1,10 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Marimo
+.marimo/
+__marimo__/
+*.marimo.py
+marimo-data/
