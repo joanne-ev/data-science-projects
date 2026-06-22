@@ -8,10 +8,10 @@ This repository contains a curated collection of Python projects applying data s
 
 ## Current Projects
 
-| Project Name                           | Description                                                                                                        | Datasets                                                                                                                                                            | Start Date | Branch Name       | Branch Created |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------------- | -------------- |
-| DC vs Marvel: Battle of the Box Office | [R] Which comic universe is most popular?                                                                          |                                                                                                                                                                     |            | project/dc-marvel |                |
-| WSL: Big Four                          | [R] Who are the Big Four of the Women's Super League? [M] Who will be the Big Four of the WSL next season (26/27)? | [25/26](https://fixturedownload.com/results/wsl-2025), [24/25](https://fixturedownload.com/results/wsl-2024), [23/24](https://fixturedownload.com/results/wsl-2023) |            | project/wsl       | ✅              |
+| Project Name                           | Description                                                                                                        | Datasets                                                         | Start Date | Branch Name       | Branch Created |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ---------- | ----------------- | -------------- |
+| DC vs Marvel: Battle of the Box Office | [R] Which comic universe is most popular?                                                                          |                                                                  |            | project/dc-marvel |                |
+| WSL: Big Four                          | [R] Who are the Big Four of the Women's Super League? [M] Who will be the Big Four of the WSL next season (26/27)? | [Fixture Download](https://fixturedownload.com/results/wsl-2025) |            | project/wsl       | ✅              |
 
 ## How to run notebooks
 
