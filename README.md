@@ -8,10 +8,10 @@ This repository contains a curated collection of Python projects applying data s
 
 ## Current Projects
 
-| Project Name                           | Description                                                                                                        | Datasets                                                         | Start Date | Branch Name       | Branch Created |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ---------- | ----------------- | -------------- |
-| DC vs Marvel: Battle of the Box Office | [R] Which comic universe is most popular?                                                                          |                                                                  |            | project/dc-marvel |                |
-| WSL: Big Four                          | [R] Who are the Big Four of the Women's Super League? [M] Who will be the Big Four of the WSL next season (26/27)? | [Fixture Download](https://fixturedownload.com/results/wsl-2025) |            | project/wsl       | ✅              |
+| Project Name                           | Description                                                                                                        | Datasets                                                         | Start Date   | Branch Name       | Branch Created |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ------------ | ----------------- | -------------- |
+| DC vs Marvel: Battle of the Box Office | [R] Which comic universe is most popular?                                                                          |                                                                  |              | project/dc-marvel |                |
+| WSL: Big Four                          | [R] Who are the Big Four of the Women's Super League? [M] Who will be the Big Four of the WSL next season (26/27)? | [Fixture Download](https://fixturedownload.com/results/wsl-2025) | 22 June 2026 | project/wsl       | ✅              |
 
 ## How to run notebooks
 
@@ -35,4 +35,4 @@ This repository contains a curated collection of Python projects applying data s
     1. Run `uv sync` to create the virtual environment with the neccessary packages noted in the `pyproject.toml` file
     2. Run `marimo edit notebook.py` to run the actual Marimo notebook on a local host.
 2. If you do not have UV:
-    1. You can run the downloaded `notebook.py` in [molab](https://molab.marimo.io/notebooks), which allows you to create, run and share cloud-hosted marimo notebookarimo
+    1. You can run the downloaded `notebook.py` in [molab](https://molab.marimo.io/notebooks), which allows you to create, run and share cloud-hosted marimo notebook
