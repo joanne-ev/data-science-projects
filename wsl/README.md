@@ -4,12 +4,16 @@
 
 The Women's Super League (WSL) is the top division league for professional women's football in England. It is widely regarded as one of the most popular and competitive league in women's football, attracting elite talent from across the globe. This project analyses the WSL through various visualisations of goals scored segmented by teams and regions alongside match-specific facets like kickoff timings. This project will also look at smaller research questions I was interested in knowing with the ultimate goal of developing a deep learning model to predict the next season's winner.
 
+## Data Source
+
+[Fixture Download](https://fixturedownload.com/)
+
 ## Research Question
 
 1. [R] Who are the Big Four of the Women's Super League?
 2. [M] Who will be the Big Four of the WSL next season (26/27)?
 
-### [M] Who are the *Big Four* of the WSL?
+### [R] Who are the *Big Four* of the WSL?
 
 **Background:** The *Big Six* is a term used to describe the six wealthiest clubs in the Premier League (i.e., top division league for professional men's football in England) that historically dominate the league standings and possess the largest global fanbases. The Big Six include: Arsenal, Chelsea, Liverpool, Manchester City, Manchester United and Tottenham Hotspur.
 
