@@ -1,6 +1,6 @@
 import polars as pl
 
-def import_data(latest_season=25):
+def import_data(latest_season:int = 25):
     dfs =[]
 
     for i in range(23, (latest_season+1)):
@@ -8,3 +8,20 @@ def import_data(latest_season=25):
         dfs.append(df)
 
     return pl.concat(dfs)
+
+def total_games(team:str, data:pl.DataFrame):
+    games = []
+
+    for season in data['Season'].unique().to_list():
+        count = (
+            data
+            .filter(
+                pl.col('Season').eq(season),
+                (pl.col('Home Team').eq(team) | pl.col('Away Team').eq(team))
+            )
+            .shape[0]
+        )
+
+        games.append(count)
+
+    return sum(games)
