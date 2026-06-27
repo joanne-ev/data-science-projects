@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.10"
+__generated_with = "0.23.9"
 app = marimo.App(width="columns")
 
 
@@ -206,7 +206,7 @@ def _(data):
 def _(mo):
     mo.md(r"""
     -   Ratio of games won to games lost ✅
-    -   Ratio of goals scored to goals conceeded -> Goal Difference
+    -   Ratio of goals scored to goals conceeded -> Goal Difference ✅
     -   Consistency throughout seasons
     """)
     return
@@ -220,95 +220,114 @@ def _(mo):
     return
 
 
-@app.cell(column=2, hide_code=True)
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Ratio of goals scored to goals conceeded (or Goal Difference)
+    Consistency here refers to table placing in the league; which teams have regularly ended the season within the top four slots.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(data, pl, total_games):
-    gd_calc = (
+def _(data, pl):
+    points = (
         data
         .with_columns(
-            pl.when(pl.col('Winner').eq('Away'))
-            .then((pl.col('Away Goals') - pl.col('Home Goals')))
-            .when(pl.col('Winner').eq('Home'))
-            .then((pl.col('Home Goals') - pl.col('Away Goals')))
-            .otherwise(pl.lit(0))
-            .alias('Winner GD'),
+            pl.when(pl.col('Winning Team').is_not_null())
+            .then(pl.lit(3))
+            .when(pl.col('Draw (1)').is_not_null() | pl.col('Draw (2)').is_not_null())
+            .then(pl.lit(1))
+            .otherwise(pl.lit(None))
+            .alias('Points')
         )
-
-        .with_columns(
-            (pl.col('Winner GD') * -1).alias('Loser GD')
-        )
-
-        .select(["Winning Team", "Losing Team", "Winner GD", "Loser GD"])
+        .select(['Season', 'Winning Team', 'Draw (1)', 'Draw (2)', 'Points',])
     )
-
-    positive_gd = gd_calc.group_by('Winning Team').agg(pl.sum('Winner GD')).rename({'Winning Team': 'Team'})
-    negative_gd = gd_calc.group_by('Losing Team').agg(pl.sum('Loser GD')).rename({'Losing Team': 'Team'})
-
-    goal_difference = (
-        positive_gd
-            .join(negative_gd, on='Team')
-            .with_columns(
-                (pl.col('Winner GD') + pl.col('Loser GD')).alias('Final GD'), 
-                pl.col('Team').map_elements(lambda team: total_games(team=team, data=data)).alias('Total Games')
-            )
-            .sort('Final GD', descending=True)
-    )
-
-    goal_difference
-    return (goal_difference,)
+    return (points,)
 
 
 @app.cell(hide_code=True)
+def _(cs, pl, points):
+    points_win = (
+        points
+        .group_by('Season', 'Winning Team')
+        .agg(pl.col('Points').sum())
+        .rename({'Winning Team':'Team', 'Points':'W'})
+        .drop_nulls()
+    )
+
+    points_draw1 = (
+        points
+        .group_by('Season', 'Draw (1)')
+        .agg(pl.col('Points').sum())
+        .rename({'Draw (1)':'Team', 'Points':'D1'})
+    )
+
+    points_draw2 = (
+        points
+        .group_by('Season', 'Draw (2)')
+        .agg(pl.col('Points').sum())
+        .rename({'Draw (2)':'Team', 'Points':'D2'})
+    )
+
+    points_ranked = (
+        points_win
+        .join(points_draw1, on=['Season', 'Team'], how='full', suffix='_D1')
+        .join(points_draw2, on=['Season', 'Team'], how='full', suffix='_D2')
+        .drop(cs.contains('Team_', 'Season_'))
+        .drop_nulls(subset=['Season'])
+        .with_columns(
+            pl.sum_horizontal(['W', 'D1', 'D2']).alias('Points'),
+        )
+        .drop(['W', 'D1', 'D2'])
+        .sort(by=['Season', 'Points'], descending=[True, True])
+
+    )
+    return (points_ranked,)
+
+
+@app.cell(hide_code=True)
+def _(gd_calc, pl):
+    pos_gd_season = gd_calc.group_by(['Season', 'Winning Team']).agg(pl.sum('Positive GD')).rename({'Winning Team': 'Team'})
+    neg_gd_season = gd_calc.group_by(['Season', 'Losing Team']).agg(pl.sum('Negative GD')).rename({'Losing Team': 'Team'})
+
+    gd_season = (
+        pos_gd_season
+        .join(neg_gd_season, on=['Season', 'Team'])
+        .with_columns(
+            (pl.col('Positive GD') + pl.col('Negative GD')).alias('Final GD'), 
+        )
+        .sort('Final GD', descending=True)
+        .drop_nulls('Team')
+        .drop(['Positive GD', 'Negative GD'])
+    )
+    return (gd_season,)
+
+
+@app.cell(hide_code=True)
+def _(gd_season, pl, points_ranked):
+    final_rank = (
+        points_ranked
+        .join(gd_season, on=['Season', 'Team'])
+        .with_columns(
+            pl.col('Points').rank(method='min', descending=True).over('Season').alias('Rank')
+        )
+        .filter(pl.col('Rank').le(4))
+        .with_columns(
+            pl.struct(pl.col('Points'), pl.col('Final GD'))
+            .rank(method='min', descending=True).over('Season').alias('Rank')
+        )
+    )
+
+    final_rank
+    return
+
+
+@app.cell
 def _():
     return
 
 
-@app.cell(hide_code=True)
-def _(alt, cs, goal_difference, pl):
-    gd_fig = (
-        goal_difference
-        .with_columns(
-            pl.concat_str(
-                pl.col('Team'),
-                pl.lit(' ('),
-                pl.col('Total Games'),
-                pl.lit(')')
-            ).alias('Team (Total Games Played)')
-        )
-        .select(['Team (Total Games Played)', 'Winner GD', 'Loser GD', 'Final GD'])
-        .unpivot(cs.numeric(), index='Team (Total Games Played)')
-    )
-
-    (
-        alt.Chart(gd_fig)
-            .mark_bar()
-            .encode(
-                x=alt.X('Team (Total Games Played)', sort='-y'),
-                y=alt.Y('value:Q'),
-                color=alt.Color(
-                    'variable', 
-                    scale=alt.Scale(domain=['Winner GD', 'Loser GD'], range=['steelblue', 'tomato'])
-                ),
-                tooltip=['Team (Total Games Played)', 'variable', 'value']
-            )
-
-            .properties(
-                width=600,
-                height=400,
-                title='Goal Difference by Team'
-            )
-    )
-    return
-
-
-@app.cell(column=3, hide_code=True)
+@app.cell(column=2, hide_code=True)
 def _(mo):
     mo.md(r"""
     ## Ratio of Games Won to Games Lost
@@ -421,6 +440,139 @@ def _(alt, cs, pl, win_lose_percent: "pl.DataFrame"):
             tooltip=['Team', 'variable', 'Percentage']
         )
         .properties(width=800, height=400)
+    )
+    return
+
+
+@app.cell(column=3, hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Ratio of goals scored to goals conceeded (or Goal Difference)
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(data, pl):
+    gd_calc = (
+        data
+        .with_columns(
+            pl.when(pl.col('Winner').eq('Away'))
+            .then((pl.col('Away Goals') - pl.col('Home Goals')))
+            .when(pl.col('Winner').eq('Home'))
+            .then((pl.col('Home Goals') - pl.col('Away Goals')))
+            .otherwise(pl.lit(0))
+            .alias('Positive GD'),
+        )
+
+        .with_columns(
+            (pl.col('Positive GD') * -1).alias('Negative GD')
+        )
+
+        # .select(["Season", "Winning Team", "Losing Team", "Positive GD", "Negative GD"])
+    )
+
+    positive_gd = gd_calc.group_by('Winning Team').agg(pl.sum('Positive GD')).rename({'Winning Team': 'Team'})
+    negative_gd = gd_calc.group_by('Losing Team').agg(pl.sum('Negative GD')).rename({'Losing Team': 'Team'})
+
+    goal_difference = (
+        positive_gd
+            .join(negative_gd, on='Team')
+            .with_columns(
+                (pl.col('Positive GD') + pl.col('Negative GD')).alias('Final GD'), 
+            )
+            .sort('Final GD', descending=True)
+    )
+    return gd_calc, goal_difference
+
+
+@app.cell(hide_code=True)
+def _(cs, data, goal_difference, pl, total_games):
+    gd_fig = (
+        goal_difference
+        .select(['Team', 'Positive GD', 'Negative GD', 'Final GD'])
+        .unpivot(cs.numeric(), index='Team')
+        .with_columns(
+            pl.col('Team').map_elements(lambda team: total_games(team=team, data=data)).alias('Total Games')
+        )
+    )
+    return (gd_fig,)
+
+
+@app.cell(hide_code=True)
+def _(gd_fig, pl):
+    gd_b4_team = gd_fig.filter(pl.col('variable').eq('Final GD')).sort(by='value', descending=True).head(4).select('Team')
+
+    gd_best = gd_fig.filter(pl.col('variable').eq('Final GD')).sort(by='value', descending=True).head(1)
+    return gd_b4_team, gd_best
+
+
+@app.cell(hide_code=True)
+def _(gd_b4_team, gd_best, mo, seasons):
+    mo.md(f"""
+    Goal difference looks at the difference between goals scored to goals conceeded. A positive goal difference sees a team scoring more goals than they conceed while a negative goal difference sees a team conceed more goals than they score. For example, if Arsenal wins a game against Chelsea, 2-1, the goal difference would be 1 with Arsenal having the positive goal difference (+1) and Chelsea would have a negative goal difference (-1). The goal difference is calculated for every game. 
+
+    From the graph below, the top four teams with the best goal difference are {gd_b4_team[0].item()}, {gd_b4_team[1].item()}, {gd_b4_team[2].item()} and {gd_b4_team[3].item()} with {gd_best.select('Team').item()} leading having a final goal difference of {gd_best.select('value').item()} over {gd_best.select('Total Games').item()} games in {seasons} seasons.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(alt, gd_fig, seasons):
+    (
+        alt.Chart(gd_fig)
+            .mark_bar()
+            .encode(
+                x=alt.X('Team', sort='-y'),
+                y=alt.Y('value', title='Goal Difference (GD)'),
+                color=alt.Color(
+                    'variable', 
+                    scale=alt.Scale(domain=['Positive GD', 'Negative GD'], range=['green', 'tomato']),
+                    title='GD Type'
+                ),
+                tooltip=[
+                    alt.Tooltip('Team'),
+                    alt.Tooltip('variable', title='Type'),
+                    alt.Tooltip('value', title='GD'),
+                    alt.Tooltip('Total Games', title='Total Games'),  # pulled from data, not encoded
+                ]
+            )
+
+            .properties(
+                width=600,
+                height=400,
+                title=f'Goal Difference by Team Over {seasons} Seasons'
+            )
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(alt, gd_fig, pl, seasons):
+    total_gd_fig = gd_fig.clone().filter(pl.col('variable').eq('Final GD'))
+
+    (
+        alt.Chart(total_gd_fig)
+        .mark_bar()
+        .encode(
+            x=alt.X('Team', sort='-y'),
+            y=alt.Y('value'),
+            color=alt.Color(
+                    'variable', 
+                    scale=alt.Scale(domain=['Final GD'], range=['skyblue']),
+                    title='GD Type'
+                ),
+            tooltip=[
+                    alt.Tooltip('Team'),
+                    alt.Tooltip('value', title='Final GD'),
+                    alt.Tooltip('Total Games:Q', title='Total Games'),  # pulled from data, not encoded
+                ]
+        )
+        .properties(
+            width=800,
+            height=300,
+            title=f'Final Goal Difference by Team Over {seasons} Seasons'
+        )
     )
     return
 
