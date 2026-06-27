@@ -1,19 +1,28 @@
 import polars as pl
+from urllib.error import URLError
 
 def import_data(latest_season:int = 25):
-    dfs =[]
+    dfs: list[pl.DataFrame] =[]
 
-    for i in range(23, (latest_season+1)):
-        df = pl.read_csv(f"https://codeberg.org/joanne_ev/data-science-projects/raw/branch/project/wsl/wsl/data/wsl-20{i}-UTC.csv").with_columns(pl.lit(f"{i}/{i+1}").alias("Season"))
-        dfs.append(df)
-
+    try: 
+        for i in range(23, (latest_season+1)):
+            df: pl.DataFrame = pl.read_csv(f"https://codeberg.org/joanne_ev/data-science-projects/raw/branch/project/wsl/wsl/data/wsl-20{i}-UTC.csv").with_columns(pl.lit(f"{i}/{i+1}").alias("Season"))
+            dfs.append(df)
+            
+    except URLError as e:
+        print(f'Network error: {e.reason}')
+        
+    except ValueError:
+        print('CSVs are not being read as Polars DataFrames')
+    
     return pl.concat(dfs)
 
+
 def total_games(team:str, data:pl.DataFrame):
-    games = []
+    games: list[int] = []
 
     for season in data['Season'].unique().to_list():
-        count = (
+        count: int = (
             data
             .filter(
                 pl.col('Season').eq(season),
