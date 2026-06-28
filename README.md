@@ -25,15 +25,41 @@ This repository contains a curated collection of Python projects applying data s
 1. The completed project analysis will be on the `main` branch. If the project is not in the `main` branch, it is still being worked on so will be on it’s own project branch (refer to the table above for project branch names).
     ```bash
     # Clone the repository
-    git clone <repo-url>
-    cd <repo-name>
+    git clone https://codeberg.org/joanne_ev/data-science-projects.git
+    cd data-science-projects
 
-    # Switch to a specific project branch
+    # Switch to a specific project branch (e.g., git checkout project/wsl)
     git checkout <branch-name>
     ```
 
-1. If you have UV:
+1. If you have UV installed:
     1. Run `uv sync` to create the virtual environment with the neccessary packages noted in the `pyproject.toml` file
-    2. Run `marimo edit notebook.py` to run the actual Marimo notebook on a local host.
+    2. Run `marimo run notebook.py` to run the notebook as an app on a local host.
+    3. Run `marimo edit notebook.py` to view the notebook with the code accessible on a local host.
 2. If you do not have UV:
-    1. You can run the downloaded `notebook.py` in [molab](https://molab.marimo.io/notebooks), which allows you to create, run and share cloud-hosted marimo notebook
+    1. Using `pip` :
+        ```bash
+        # Create a virtual environment
+        python -m venv .venv
+
+        # Activate the virtual environment 
+        source .venv/bin/activate
+
+        # Installs packages using pyproject.toml in current directory
+        pip install -e .
+        ```
+
+    2. Using `conda`:
+
+        ```bash
+        # Create a new conda environment
+        conda create --name uv-marimo
+
+        # Activate the conda environment
+        conda activate uv-marimo
+
+        # Install UV
+        conda install conda-forge::uv
+        ```
+
+        Follow the rules laid out in the step above as you now have UV installed in your conda environment.
