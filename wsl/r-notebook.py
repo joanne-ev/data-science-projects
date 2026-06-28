@@ -1,13 +1,13 @@
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.23.10"
 app = marimo.App(width="columns")
 
 
 @app.cell(column=0, hide_code=True)
 def _(mo):
     mo.md(r"""
-    # ⚽ Predicting Game Results in the Women's Super League (WSL)
+    # ⚽ Playing around with the Women's Super League (WSL)
 
     ## Background
 
@@ -16,6 +16,8 @@ def _(mo):
     ## Data Source
 
     [Fixture Download](https://fixturedownload.com/)
+
+    > There is a missing game in the 24/25 season for both Chelsea and Manchester United. For these team, data is only available for 22 instead of 23 games.
 
     ## Research Question
 
@@ -202,132 +204,7 @@ def _(data):
     return (seasons,)
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    -   Ratio of games won to games lost ✅
-    -   Ratio of goals scored to goals conceeded -> Goal Difference ✅
-    -   Consistency throughout seasons
-    """)
-    return
-
-
 @app.cell(column=1, hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Consistency throughout seasons
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    Consistency here refers to table placing in the league; which teams have regularly ended the season within the top four slots.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(data, pl):
-    points = (
-        data
-        .with_columns(
-            pl.when(pl.col('Winning Team').is_not_null())
-            .then(pl.lit(3))
-            .when(pl.col('Draw (1)').is_not_null() | pl.col('Draw (2)').is_not_null())
-            .then(pl.lit(1))
-            .otherwise(pl.lit(None))
-            .alias('Points')
-        )
-        .select(['Season', 'Winning Team', 'Draw (1)', 'Draw (2)', 'Points',])
-    )
-    return (points,)
-
-
-@app.cell(hide_code=True)
-def _(cs, pl, points):
-    points_win = (
-        points
-        .group_by('Season', 'Winning Team')
-        .agg(pl.col('Points').sum())
-        .rename({'Winning Team':'Team', 'Points':'W'})
-        .drop_nulls()
-    )
-
-    points_draw1 = (
-        points
-        .group_by('Season', 'Draw (1)')
-        .agg(pl.col('Points').sum())
-        .rename({'Draw (1)':'Team', 'Points':'D1'})
-    )
-
-    points_draw2 = (
-        points
-        .group_by('Season', 'Draw (2)')
-        .agg(pl.col('Points').sum())
-        .rename({'Draw (2)':'Team', 'Points':'D2'})
-    )
-
-    points_ranked = (
-        points_win
-        .join(points_draw1, on=['Season', 'Team'], how='full', suffix='_D1')
-        .join(points_draw2, on=['Season', 'Team'], how='full', suffix='_D2')
-        .drop(cs.contains('Team_', 'Season_'))
-        .drop_nulls(subset=['Season'])
-        .with_columns(
-            pl.sum_horizontal(['W', 'D1', 'D2']).alias('Points'),
-        )
-        .drop(['W', 'D1', 'D2'])
-        .sort(by=['Season', 'Points'], descending=[True, True])
-
-    )
-    return (points_ranked,)
-
-
-@app.cell(hide_code=True)
-def _(gd_calc, pl):
-    pos_gd_season = gd_calc.group_by(['Season', 'Winning Team']).agg(pl.sum('Positive GD')).rename({'Winning Team': 'Team'})
-    neg_gd_season = gd_calc.group_by(['Season', 'Losing Team']).agg(pl.sum('Negative GD')).rename({'Losing Team': 'Team'})
-
-    gd_season = (
-        pos_gd_season
-        .join(neg_gd_season, on=['Season', 'Team'])
-        .with_columns(
-            (pl.col('Positive GD') + pl.col('Negative GD')).alias('Final GD'), 
-        )
-        .sort('Final GD', descending=True)
-        .drop_nulls('Team')
-        .drop(['Positive GD', 'Negative GD'])
-    )
-    return (gd_season,)
-
-
-@app.cell(hide_code=True)
-def _(gd_season, pl, points_ranked):
-    final_rank = (
-        points_ranked
-        .join(gd_season, on=['Season', 'Team'])
-        .with_columns(
-            pl.col('Points').rank(method='min', descending=True).over('Season').alias('Rank')
-        )
-        .filter(pl.col('Rank').le(4))
-        .with_columns(
-            pl.struct(pl.col('Points'), pl.col('Final GD'))
-            .rank(method='min', descending=True).over('Season').alias('Rank')
-        )
-    )
-
-    final_rank
-    return
-
-
-@app.cell
-def _():
-    return
-
-
-@app.cell(column=2, hide_code=True)
 def _(mo):
     mo.md(r"""
     ## Ratio of Games Won to Games Lost
@@ -416,35 +293,39 @@ def _(pl, win_lose: "pl.DataFrame"):
 
 @app.cell(hide_code=True)
 def _(alt, cs, pl, win_lose_percent: "pl.DataFrame"):
-    win_lose_percent_visualisation = (
+    win_lose_percent_fig = (
         win_lose_percent
         .clone()
         .unpivot(cs.numeric(), index='Team', value_name='Percentage')
         .filter(pl.col('variable').str.contains('%'))
         .with_columns(
-            pl.col('variable').replace({'Win %': 0, 'Draw %': 1, 'Loss %': 2}).cast(pl.Int8).alias('sort_order')
+            pl.col('variable').replace({'Win %': 0, 'Draw %': 1, 'Loss %':2}).cast(pl.Int8).alias('sort_order')
         )
     )
 
     (
-        alt.Chart(win_lose_percent_visualisation)
+        alt.Chart(win_lose_percent_fig)
         .mark_bar()
         .encode(
             x='Percentage',
             y=alt.Y('Team', sort='-x'),  # sort by x value descending 
             color=alt.Color(
                 'variable', 
-                scale=alt.Scale(domain=['Loss %', 'Draw %', 'Win %'], range=['#FBB5AE', '#CCCCCC', '#B3E2CD'])
+                scale=alt.Scale(domain=['Loss %', 'Draw %', 'Win %'], range=['#FBB5AE', '#CCCCCC', '#B3E2CD']),
+                title=""
             ), 
             order=alt.Order('sort_order', sort='ascending'),
             tooltip=['Team', 'variable', 'Percentage']
         )
-        .properties(width=800, height=400)
+        .properties(
+            width=475, height=300, 
+            title='Proportion of Games Won, Loss and Drawn in the Top Four Teams'
+        )
     )
     return
 
 
-@app.cell(column=3, hide_code=True)
+@app.cell(column=2, hide_code=True)
 def _(mo):
     mo.md(r"""
     ## Ratio of goals scored to goals conceeded (or Goal Difference)
@@ -501,18 +382,20 @@ def _(cs, data, goal_difference, pl, total_games):
 
 @app.cell(hide_code=True)
 def _(gd_fig, pl):
-    gd_b4_team = gd_fig.filter(pl.col('variable').eq('Final GD')).sort(by='value', descending=True).head(4).select('Team')
+    gd_b4_team = gd_fig.filter(pl.col('variable').eq('Final GD')).sort(by='value', descending=True).head(4).select('Team').to_series().to_list()
+
+    gd_b4_team_str = ', '.join(gd_b4_team[:-1]) + f' and {gd_b4_team[-1]}'
 
     gd_best = gd_fig.filter(pl.col('variable').eq('Final GD')).sort(by='value', descending=True).head(1)
-    return gd_b4_team, gd_best
+    return gd_b4_team_str, gd_best
 
 
 @app.cell(hide_code=True)
-def _(gd_b4_team, gd_best, mo, seasons):
+def _(gd_b4_team_str, gd_best, mo, seasons):
     mo.md(f"""
     Goal difference looks at the difference between goals scored to goals conceeded. A positive goal difference sees a team scoring more goals than they conceed while a negative goal difference sees a team conceed more goals than they score. For example, if Arsenal wins a game against Chelsea, 2-1, the goal difference would be 1 with Arsenal having the positive goal difference (+1) and Chelsea would have a negative goal difference (-1). The goal difference is calculated for every game. 
 
-    From the graph below, the top four teams with the best goal difference are {gd_b4_team[0].item()}, {gd_b4_team[1].item()}, {gd_b4_team[2].item()} and {gd_b4_team[3].item()} with {gd_best.select('Team').item()} leading having a final goal difference of {gd_best.select('value').item()} over {gd_best.select('Total Games').item()} games in {seasons} seasons.
+    From the graph below, the top four teams with the best goal difference are {gd_b4_team_str} with {gd_best.select('Team').item()} leading having a final goal difference of {gd_best.select('value').item()} over {gd_best.select('Total Games').item()} games in {seasons} seasons.
     """)
     return
 
@@ -523,7 +406,7 @@ def _(alt, gd_fig, seasons):
         alt.Chart(gd_fig)
             .mark_bar()
             .encode(
-                x=alt.X('Team', sort='-y'),
+                x=alt.X('Team', sort='-y', axis=alt.Axis(labelAngle=-45)),
                 y=alt.Y('value', title='Goal Difference (GD)'),
                 color=alt.Color(
                     'variable', 
@@ -539,8 +422,7 @@ def _(alt, gd_fig, seasons):
             )
 
             .properties(
-                width=600,
-                height=400,
+                width=475, height=300, 
                 title=f'Goal Difference by Team Over {seasons} Seasons'
             )
     )
@@ -555,7 +437,7 @@ def _(alt, gd_fig, pl, seasons):
         alt.Chart(total_gd_fig)
         .mark_bar()
         .encode(
-            x=alt.X('Team', sort='-y'),
+            x=alt.X('Team', sort='-y', axis=alt.Axis(labelAngle=-45)),
             y=alt.Y('value'),
             color=alt.Color(
                     'variable', 
@@ -569,11 +451,276 @@ def _(alt, gd_fig, pl, seasons):
                 ]
         )
         .properties(
-            width=800,
-            height=300,
+            width=475, height=300, 
             title=f'Final Goal Difference by Team Over {seasons} Seasons'
         )
     )
+    return
+
+
+@app.cell(column=3, hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Consistency throughout seasons
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Consistency here refers to table placing in the league; which teams have regularly ended the season within the top four slots. The dropdown below allows you to navigate between the seasons finding the top four teams of the league in that season.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(data, pl):
+    points = (
+        data
+        .with_columns(
+            pl.when(pl.col('Winning Team').is_not_null())
+            .then(pl.lit(3))
+            .when(pl.col('Draw (1)').is_not_null() | pl.col('Draw (2)').is_not_null())
+            .then(pl.lit(1))
+            .otherwise(pl.lit(0))
+            .alias('Points')
+        )
+        .select(['Season', 'Winning Team', 'Draw (1)', 'Draw (2)', 'Points',])
+    )
+    return (points,)
+
+
+@app.cell(hide_code=True)
+def _(pl, points):
+    points_win = (
+        points
+        .group_by('Season', 'Winning Team')
+        .agg(pl.col('Points').sum())
+        .rename({'Winning Team':'Team', 'Points': 'Points_W'})
+        .drop_nulls(['Season', 'Team'])
+    )
+    return (points_win,)
+
+
+@app.cell(hide_code=True)
+def _(cs, pl, points):
+    points_draw1 = (
+        points
+        .group_by('Season', 'Draw (1)')
+        .agg(pl.col('Points').sum())
+        .rename({'Draw (1)':'Team', 'Points':'D1'})
+        .drop_nulls(['Season', 'Team'])
+    )
+
+    points_draw2 = (
+        points
+        .group_by('Season', 'Draw (2)')
+        .agg(pl.col('Points').sum())
+        .rename({'Draw (2)':'Team', 'Points':'D2'})
+        .drop_nulls('Team')
+    )
+
+    points_draw_join1 = (
+        points_draw1
+        .join(points_draw2, on=['Season', 'Team'], how='left', suffix='_D2')
+        .sort(by=['Season', 'Team'])
+        .fill_null(0)
+        .with_columns(
+            pl.sum_horizontal(['D1', 'D2']).alias('Points_D')
+        )
+        .drop(cs.contains(['D1', 'D2']))
+    )
+
+    points_draw_join2 = points_draw2.join(points_draw1, on=['Season', 'Team'], how='anti').rename({'D2': 'Points_D'})
+
+    points_draw_joined = pl.concat([points_draw_join1, points_draw_join2])
+    return (points_draw_joined,)
+
+
+@app.cell(hide_code=True)
+def _(gd_calc, pl):
+    pos_gd_season = gd_calc.group_by(['Season', 'Winning Team']).agg(pl.sum('Positive GD')).rename({'Winning Team': 'Team'}).drop_nulls('Team')
+    neg_gd_season = gd_calc.group_by(['Season', 'Losing Team']).agg(pl.sum('Negative GD')).rename({'Losing Team': 'Team'})
+
+    invincible = pos_gd_season.join(neg_gd_season, on=['Season', 'Team'], how='anti').with_columns(pl.lit(0).alias('Negative GD'))
+
+    gd_season1 = pos_gd_season.join(neg_gd_season, on=['Season', 'Team'], how='inner').cast({'Negative GD': pl.Int32})
+
+    gd_season = (
+        pl.concat([gd_season1, invincible])
+        .with_columns(
+            (pl.col('Positive GD') + pl.col('Negative GD')).alias('Final GD'), 
+        )
+        .sort('Final GD', descending=True)
+        .drop_nulls('Team')
+        .drop(['Positive GD', 'Negative GD'])
+    )
+    return (gd_season,)
+
+
+@app.cell(hide_code=True)
+def _(cs, gd_season, pl, points_draw_joined, points_win):
+    points_ranked = (
+        points_win
+        .join(points_draw_joined, on=['Season', 'Team'], how='inner')
+        .join(gd_season, on=['Season', 'Team'], how='inner')
+        .with_columns(
+            pl.sum_horizontal(cs.contains('Points')).alias('Points'),
+        )
+        .drop(cs.contains('_'))
+    )
+    return (points_ranked,)
+
+
+@app.cell(hide_code=True)
+def _(pl, points_ranked):
+    final_rank = (
+        points_ranked
+        .with_columns(
+            pl.struct(pl.col('Points'), pl.col('Final GD'))
+            .rank(method='min', descending=True).over('Season').alias('Rank')
+        )
+        .filter(pl.col('Rank').le(4))
+        .sort(by=['Season', 'Rank', 'Final GD'], descending=[True, False, True])
+    )
+    return (final_rank,)
+
+
+@app.cell(hide_code=True)
+def _(final_rank, mo):
+    season_dropdown = mo.ui.dropdown(options=final_rank['Season'].unique().sort().to_list(), value='23/24', label='Select a season to find its top four WSL teams:')
+
+    season_dropdown
+    return (season_dropdown,)
+
+
+@app.cell(hide_code=True)
+def _(final_rank, pl, season_dropdown):
+    final_rank.filter(pl.col('Season').eq(season_dropdown.value))
+
+    return
+
+
+@app.cell(hide_code=True)
+def _(final_rank, pl):
+    position_consitency = (
+        final_rank['Team'].value_counts()
+        .with_columns(
+            pl.col('count').rank(method='min', descending=True).alias('rank')
+        )
+        .filter(pl.col('rank').le(4))
+        .select('Team')
+        .sort(by='Team')
+        .to_series()
+        .to_list()
+    )
+
+    position_consitency_str = ', '.join(position_consitency[:-1]) + f' and {position_consitency[-1]}'
+
+
+    top4_teams = final_rank['Team'].unique().sort().to_list()
+    top4_teams_str = ', '.join(top4_teams[:-1]) + f' and {top4_teams[-1]}'
+    return position_consitency_str, top4_teams_str
+
+
+@app.cell(hide_code=True)
+def _(final_rank, pl):
+    league_winners_count = (
+        final_rank
+        .filter(pl.col('Rank').eq(1))
+        .group_by('Team')
+        .agg(pl.len().alias('Count'))
+        .sort(by='Count', descending=True)
+        .head(1)
+    )
+    return (league_winners_count,)
+
+
+@app.cell(hide_code=True)
+def _(
+    league_winners_count,
+    mo,
+    position_consitency_str,
+    seasons,
+    top4_teams_str,
+):
+    mo.md(f"""
+    For the past {seasons} seasons, the teams that have finished in the top four include: {top4_teams_str}. 
+
+    However the top four teams that have regularly been in the top four are {position_consitency_str}. {league_winners_count['Team'].item()} have been dominant, winning the league the most ({league_winners_count['Count'].item()}) over the past seasons.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(alt, final_rank, seasons):
+    (
+        alt.Chart(final_rank)
+        .mark_line()
+        .encode(
+            x=alt.X('Season', axis=alt.Axis(labelAngle=0)),
+            y=alt.Y('Rank').scale(reverse=True, domain=[0.5, 4.5]).axis(values=[1, 2, 3, 4]),
+            shape=alt.Shape('Team'),
+            color=alt.Color(
+                'Team',
+                scale=alt.Scale(
+                    domain=['Arsenal', 'Chelsea', 'Liverpool', 'Manchester City', 'Manchester United'],
+                    range=['red', 'blue', 'lightcoral', 'skyblue', 'hotpink']
+                )
+            ),
+            tooltip=['Team', 'Rank', 'Points', 'Final GD']
+        )
+        .properties(
+            width=475, height=300,
+            title=f'Top Four Teams Over {seasons} seasons'
+        )
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(final_rank, pl):
+    most_points = final_rank.filter(pl.col('Points').eq(final_rank['Points'].max()))
+    least_points = final_rank.filter(pl.col('Points').eq(final_rank['Points'].min()))
+    return least_points, most_points
+
+
+@app.cell(hide_code=True)
+def _(final_rank, least_points, mo, most_points):
+    mo.md(f"""
+    Looking at points scored, {most_points['Team'].item()} have scored the most points in a season, scoring {most_points['Points'].item()} points in the {most_points['Season'].item()} season. Alternatively, {least_points['Team'].item()} have scored the least points in a season, scoring {least_points['Points'].item()} points in the {least_points['Season'].item()} season.
+
+    The average points scored by teams who managed top four position is {int(final_rank['Points'].mean())}. The plot below presents this spread of points among these teams.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(alt, final_rank, seasons):
+    (
+        alt.Chart(final_rank)
+        .mark_bar()
+        .encode(
+            x=alt.X('Team', axis=alt.Axis(labelAngle=0)),
+            xOffset='Season',
+            y=alt.Y('Points'),
+            color='Season',
+            tooltip=['Team', 'Rank', 'Points', 'Season']
+        )
+        .properties(
+            width=475, height=300, 
+            title=f"Points from the Top Four Ranked Teams Across {seasons} seasons"
+        )
+    )
+    return
+
+
+@app.cell(column=4, hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Final Verdict: Who are the Big Four of the WSL?
+    """)
     return
 
 
