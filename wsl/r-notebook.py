@@ -17,7 +17,7 @@ def _(mo):
 
     [Fixture Download](https://fixturedownload.com/)
 
-    > There is a missing game in the 24/25 season for both Chelsea and Manchester United. For these team, data is only available for 22 instead of 23 games.
+    > There is a missing game in the 24/25 season for both Chelsea and Manchester United. For these teams, data is only available for 22 instead of 23 games.
 
     ## Research Question
 
@@ -228,11 +228,25 @@ def _(data, pl, total_games):
 
 
 @app.cell(hide_code=True)
-def _(big4_ratio, mo, pl, seasons, win_lose_ratio: "pl.DataFrame"):
+def _(
+    mo,
+    pl,
+    seasons,
+    win_lose_ratio: "pl.DataFrame",
+    win_lose_ratio_b4,
+    win_lose_ratio_b4_str,
+):
     mo.md(f"""
-    The table below shows the Big Four based on their win ratio over {seasons} seasons. The win ratio can be interpreted as the number of wins a team has for every loss. The teams with the highest win ratios are: {big4_ratio[0]}, {big4_ratio[1]}, {big4_ratio[2]} and {big4_ratio[3]}. These high ratios suggest that teams are winning more games than they lose, with {big4_ratio[0]} having the highest ratio winning {win_lose_ratio.select(pl.first('Win Ratio')).item()} games before losing their first game.
+    The table below shows the Big Four based on their win ratio over {seasons} seasons. The win ratio can be interpreted as the number of wins a team has for every loss. The teams with the highest win ratios are: {win_lose_ratio_b4_str}. These high ratios suggest that teams are winning more games than they lose, with {win_lose_ratio_b4[0]} having the highest ratio winning {win_lose_ratio.select(pl.first('Win Ratio')).item()} games before losing their first game.
     """)
     return
+
+
+@app.cell(hide_code=True)
+def _(win_lose_ratio: "pl.DataFrame"):
+    win_lose_ratio_b4 = win_lose_ratio['Team'].to_list()
+    win_lose_ratio_b4_str = ", ".join(win_lose_ratio_b4[:-1]) + f' and {win_lose_ratio_b4[-1]}'
+    return win_lose_ratio_b4, win_lose_ratio_b4_str
 
 
 @app.cell(hide_code=True)
@@ -247,26 +261,30 @@ def _(pl, win_lose: "pl.DataFrame"):
         .drop('Total Games')
     )
 
-    big4_ratio = win_lose_ratio['Team'].to_list()
-
     win_lose_ratio
-    return big4_ratio, win_lose_ratio
+    return (win_lose_ratio,)
 
 
 @app.cell(hide_code=True)
 def _(
-    big4_percent,
     data,
     mo,
     pl,
     seasons,
     total_games,
     win_lose_percent: "pl.DataFrame",
+    win_lose_percent_b4,
 ):
     mo.md(f"""
-    To visualise this ratio, the stacked bar chart below shows the proportion of wins versus losses for the Big Four teams. These teams have the largest proportion of games won with {big4_percent[0]} leading the field having won {win_lose_percent.select(pl.first('Win %')).item()}% of the games played over {total_games(data=data, team=big4_percent[0])} games in {seasons} seasons
+    To visualise this ratio, the stacked bar chart below shows the proportion of wins versus losses for the Big Four teams. These teams have the largest proportion of games won with {win_lose_percent_b4[0]} leading the field having won {win_lose_percent.select(pl.first('Win %')).item()}% of the games played over {total_games(data=data, team=win_lose_percent_b4[0])} games in {seasons} seasons
     """)
     return
+
+
+@app.cell(hide_code=True)
+def _(win_lose_percent: "pl.DataFrame"):
+    win_lose_percent_b4 = win_lose_percent['Team'].to_list()
+    return (win_lose_percent_b4,)
 
 
 @app.cell(hide_code=True)
@@ -284,11 +302,9 @@ def _(pl, win_lose: "pl.DataFrame"):
         .select(['Team', 'Win %', 'Loss %', 'Draw %', 'Wins', 'Losses', 'Draws', 'Total Games'])
     )
 
-    big4_percent = win_lose_percent['Team'].to_list()
-
 
     win_lose_percent
-    return big4_percent, win_lose_percent
+    return (win_lose_percent,)
 
 
 @app.cell(hide_code=True)
@@ -311,7 +327,7 @@ def _(alt, cs, pl, win_lose_percent: "pl.DataFrame"):
             y=alt.Y('Team', sort='-x'),  # sort by x value descending 
             color=alt.Color(
                 'variable', 
-                scale=alt.Scale(domain=['Loss %', 'Draw %', 'Win %'], range=['#FBB5AE', '#CCCCCC', '#B3E2CD']),
+                scale=alt.Scale(domain=['Loss %', 'Draw %', 'Win %'], range=['tomato', '#CCCCCC', 'green']),
                 title=""
             ), 
             order=alt.Order('sort_order', sort='ascending'),
@@ -322,6 +338,26 @@ def _(alt, cs, pl, win_lose_percent: "pl.DataFrame"):
             title='Proportion of Games Won, Loss and Drawn in the Top Four Teams'
         )
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _(win_lose_percent_b4):
+    win_lose_percent_b4_str = ", ".join(win_lose_percent_b4[:-1]) + f' and {win_lose_percent_b4[-1]}'
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, win_lose_ratio_b4):
+    mo.md(f"""
+    ### Summary
+
+    The Big Four in this category: 
+    1. {win_lose_ratio_b4[0]}
+    1. {win_lose_ratio_b4[1]}
+    1. {win_lose_ratio_b4[2]}
+    1. {win_lose_ratio_b4[3]}
+    """)
     return
 
 
@@ -387,13 +423,13 @@ def _(gd_fig, pl):
     gd_b4_team_str = ', '.join(gd_b4_team[:-1]) + f' and {gd_b4_team[-1]}'
 
     gd_best = gd_fig.filter(pl.col('variable').eq('Final GD')).sort(by='value', descending=True).head(1)
-    return gd_b4_team_str, gd_best
+    return gd_b4_team, gd_b4_team_str, gd_best
 
 
 @app.cell(hide_code=True)
 def _(gd_b4_team_str, gd_best, mo, seasons):
     mo.md(f"""
-    Goal difference looks at the difference between goals scored to goals conceeded. A positive goal difference sees a team scoring more goals than they conceed while a negative goal difference sees a team conceed more goals than they score. For example, if Arsenal wins a game against Chelsea, 2-1, the goal difference would be 1 with Arsenal having the positive goal difference (+1) and Chelsea would have a negative goal difference (-1). The goal difference is calculated for every game. 
+    Goal difference looks at the difference between goals scored to goals conceeded. A positive goal difference sees a team scoring more goals than they conceed while a negative goal difference sees a team conceed more goals than they score. For example, if Arsenal wins a game against Chelsea, 2-1, the goal difference would be 1 with Arsenal having the positive goal difference (+1) and Chelsea would have a negative goal difference (-1). The goal difference is calculated for every game and totaled at the end of the season. If two teams tie on points, the team with the better goal difference wins (this happened in 23/24!). 
 
     From the graph below, the top four teams with the best goal difference are {gd_b4_team_str} with {gd_best.select('Team').item()} leading having a final goal difference of {gd_best.select('value').item()} over {gd_best.select('Total Games').item()} games in {seasons} seasons.
     """)
@@ -455,6 +491,20 @@ def _(alt, gd_fig, pl, seasons):
             title=f'Final Goal Difference by Team Over {seasons} Seasons'
         )
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _(gd_b4_team, mo):
+    mo.md(f"""
+    ### Summary
+
+    The Big Four in this category: 
+    1. {gd_b4_team[0]}
+    1. {gd_b4_team[1]}
+    1. {gd_b4_team[2]}
+    1. {gd_b4_team[3]}
+    """)
     return
 
 
@@ -598,7 +648,6 @@ def _(final_rank, mo):
 @app.cell(hide_code=True)
 def _(final_rank, pl, season_dropdown):
     final_rank.filter(pl.col('Season').eq(season_dropdown.value))
-
     return
 
 
@@ -621,7 +670,7 @@ def _(final_rank, pl):
 
     top4_teams = final_rank['Team'].unique().sort().to_list()
     top4_teams_str = ', '.join(top4_teams[:-1]) + f' and {top4_teams[-1]}'
-    return position_consitency_str, top4_teams_str
+    return position_consitency, position_consitency_str, top4_teams_str
 
 
 @app.cell(hide_code=True)
@@ -646,18 +695,15 @@ def _(
     top4_teams_str,
 ):
     mo.md(f"""
-    For the past {seasons} seasons, the teams that have finished in the top four include: {top4_teams_str}. 
-
-    However the top four teams that have regularly been in the top four are {position_consitency_str}. {league_winners_count['Team'].item()} have been dominant, winning the league the most ({league_winners_count['Count'].item()}) over the past seasons.
+    For the past {seasons} seasons, the teams that have finished in the top four include: {top4_teams_str}. However the top four teams that have regularly been in the top four are {position_consitency_str}. {league_winners_count['Team'].item()} have been dominant, winning the league the most ({league_winners_count['Count'].item()}) over the past seasons.
     """)
     return
 
 
 @app.cell(hide_code=True)
 def _(alt, final_rank, seasons):
-    (
+    base = (
         alt.Chart(final_rank)
-        .mark_line()
         .encode(
             x=alt.X('Season', axis=alt.Axis(labelAngle=0)),
             y=alt.Y('Rank').scale(reverse=True, domain=[0.5, 4.5]).axis(values=[1, 2, 3, 4]),
@@ -676,6 +722,8 @@ def _(alt, final_rank, seasons):
             title=f'Top Four Teams Over {seasons} seasons'
         )
     )
+
+    base.mark_line() + base.mark_point(size=150)
     return
 
 
@@ -689,7 +737,7 @@ def _(final_rank, pl):
 @app.cell(hide_code=True)
 def _(final_rank, least_points, mo, most_points):
     mo.md(f"""
-    Looking at points scored, {most_points['Team'].item()} have scored the most points in a season, scoring {most_points['Points'].item()} points in the {most_points['Season'].item()} season. Alternatively, {least_points['Team'].item()} have scored the least points in a season, scoring {least_points['Points'].item()} points in the {least_points['Season'].item()} season.
+    Looking at points scored, {most_points['Team'].item()} have scored the most points in a season, scoring {most_points['Points'].item()} points in the {most_points['Season'].item()} season. Alternatively, {least_points['Team'].item()} have scored the least points in a season to make top four, scoring {least_points['Points'].item()} points in the {least_points['Season'].item()} season.
 
     The average points scored by teams who managed top four position is {int(final_rank['Points'].mean())}. The plot below presents this spread of points among these teams.
     """)
@@ -716,12 +764,42 @@ def _(alt, final_rank, seasons):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo, position_consitency):
+    mo.md(f"""
+    ### Summary
+
+    The Big Four in this category: 
+    1. {position_consitency[0]}
+    1. {position_consitency[1]}
+    1. {position_consitency[2]}
+    1. {position_consitency[3]}
+    """)
+    return
+
+
 @app.cell(column=4, hide_code=True)
 def _(mo):
     mo.md(r"""
     ## Final Verdict: Who are the Big Four of the WSL?
     """)
     return
+
+
+@app.cell(hide_code=True)
+def _(big_four_str, mo):
+    mo.md(f"""
+    The Big Four of the WSL are {big_four_str}. These four teams have dominated across all three categories.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(gd_b4_team, pl, position_consitency, win_lose_ratio_b4):
+    big_four = pl.DataFrame(data=[win_lose_ratio_b4 + gd_b4_team + position_consitency], schema=['b4'])['b4'].value_counts().sort(by='count', descending=True).head(4).select('b4').to_series().to_list()
+
+    big_four_str = ', '.join(big_four[:-1]) + f" and {big_four[-1]}"
+    return (big_four_str,)
 
 
 if __name__ == "__main__":
