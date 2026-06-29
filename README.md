@@ -8,11 +8,11 @@ This repository contains a curated collection of Python projects applying data s
 
 ## Current Projects
 
-| Project Name      | Description                                                                                                                          | Datasets                                                         | Start Date   | Branch Name               | Branch Created |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ------------ | ------------------------- | -------------- |
-| WSL: Big Four     | [R] Who are the Big Four of the Women's Super League? [M] Who will be the Big Four of the WSL next season (26/27)?                   | [Fixture Download](https://fixturedownload.com/results/wsl-2025) | 22 June 2026 | project/wsl               | ✅              |
-| Superhero Fatigue | [R] Are female superhero movies doomed to fail? [M] Can we predict the box office opening of future female-centric superhero movies? |                                                                  |              | project/superhero-fatigue |                |
-|                   |                                                                                                                                      |                                                                  |              |                           |                |
+| Project Name      | Description                                                                                                                          | Datasets                                                         | Start Date   | Branch Name               | Branch Created | Updates                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ------------ | ------------------------- | -------------- | --------------------------- |
+| WSL: Big Four     | [R] Who are the Big Four of the Women's Super League? [M] Who will be the Big Four of the WSL next season (26/27)?                   | [Fixture Download](https://fixturedownload.com/results/wsl-2025) | 22 June 2026 | project/wsl               | ✅              | 29 June 2026: Completed [R] |
+| Superhero Fatigue | [R] Are female superhero movies doomed to fail? [M] Can we predict the box office opening of future female-centric superhero movies? |                                                                  |              | project/superhero-fatigue |                |                             |
+|                   |                                                                                                                                      |                                                                  |              |                           |                |                             |
 
 ## How to run notebooks
 
