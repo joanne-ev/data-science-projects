@@ -59,9 +59,9 @@ def _():
     import polars as pl
     import polars.selectors as cs
     import altair as alt
-    from functions import import_data, total_games
+    from functions import import_research_data, total_games
 
-    return alt, cs, import_data, mo, pl, total_games
+    return alt, cs, import_research_data, mo, pl, total_games
 
 
 @app.cell(hide_code=True)
