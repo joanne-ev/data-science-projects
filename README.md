@@ -8,11 +8,11 @@ This repository contains a curated collection of Python projects applying data s
 
 ## Current Projects
 
-| Project Name      | Description                                                                                                                          | Datasets                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Start Date   | Branch Name               | Branch Created | Updates                     |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ------------------------- | -------------- | --------------------------- |
-| WSL: Big Four     | [R] Who are the Big Four of the Women's Super League? [M] Who will be the Big Four of the WSL next season (26/27)?                   | [Fixture Download](https://fixturedownload.com/results/wsl-2025), [FIFA 15-22](https://www.kaggle.com/datasets/stefanoleone992/fifa-22-complete-player-dataset), [FIFA 23](https://www.kaggle.com/datasets/stefanoleone992/fifa-23-complete-player-dataset), [EA Sports FC 24](https://www.kaggle.com/datasets/stefanoleone992/ea-sports-fc-24-complete-player-dataset), [EA Sports FC 25](https://www.kaggle.com/datasets/nyagami/ea-sports-fc-25-database-ratings-and-stats) | 22 June 2026 | project/wsl               | ✅              | 29 June 2026: Completed [R] |
-| Superhero Fatigue | [R] Are female superhero movies doomed to fail? [M] Can we predict the box office opening of future female-centric superhero movies? |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |              | project/superhero-fatigue |                |                             |
-|                   |                                                                                                                                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |              |                           |                |                             |
+| Project Name      | Description                                                                                                                               | Datasets                                                         | Start Date                            | Branch Name               | Branch Created | Updates                     |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------- | ------------------------- | -------------- | --------------------------- |
+| WSL: Big Four     | [R] Who are the Big Four of the Women's Super League? <br> [M] Who will be the Big Four of the WSL next season (26/27)?                   | [Fixture Download](https://fixturedownload.com/results/wsl-2025) | [R] 22 June 2026 <br> [M] 2 July 2026 | project/wsl               | ✅             | 29 June 2026: Completed [R] |
+| Superhero Fatigue | [R] Are female superhero movies doomed to fail? <br> [M] Can we predict the box office opening of future female-centric superhero movies? |                                                                  | [R] 2 July 2026                       | project/superhero-fatigue | ✅             |                             |
+|                   |                                                                                                                                           |                                                                  |                                       |                           |                |                             |
 
 ## How to run notebooks
 
@@ -23,43 +23,45 @@ This repository contains a curated collection of Python projects applying data s
 ### To run a Marimo notebook
 
 1. The completed project analysis will be on the `main` branch. If the project is not in the `main` branch, it is still being worked on so will be on it’s own project branch (refer to the table above for project branch names).
-    ```bash
-    # Clone the repository
-    git clone https://codeberg.org/joanne_ev/data-science-projects.git
-    cd data-science-projects
 
-    # Switch to a specific project branch (e.g., git checkout project/wsl)
-    git checkout <branch-name>
-    ```
+   ```bash
+   # Clone the repository
+   git clone https://codeberg.org/joanne_ev/data-science-projects.git
+   cd data-science-projects
+
+   # Switch to a specific project branch (e.g., git checkout project/wsl)
+   git checkout <branch-name>
+   ```
 
 1. If you have UV installed:
-    1. Run `uv sync` to create the virtual environment with the neccessary packages noted in the `pyproject.toml` file
-    2. Run `marimo run notebook.py` to run the notebook as an app on a local host.
-    3. Run `marimo edit notebook.py` to view the notebook with the code accessible on a local host.
-2. If you do not have UV:
-    1. Using `pip` :
-        ```bash
-        # Create a virtual environment
-        python -m venv .venv
+   1. Run `uv sync` to create the virtual environment with the neccessary packages noted in the `pyproject.toml` file
+   2. Run `marimo run notebook.py` to run the notebook as an app on a local host.
+   3. Run `marimo edit notebook.py` to view the notebook with the code accessible on a local host.
+1. If you do not have UV:
+   1. Using `pip` :
 
-        # Activate the virtual environment 
-        source .venv/bin/activate
+      ```bash
+      # Create a virtual environment
+      python -m venv .venv
 
-        # Installs packages using pyproject.toml in current directory
-        pip install -e .
-        ```
+      # Activate the virtual environment
+      source .venv/bin/activate
 
-    2. Using `conda`:
+      # Installs packages using pyproject.toml in current directory
+      pip install -e .
+      ```
 
-        ```bash
-        # Create a new conda environment
-        conda create --name uv-marimo
+   2. Using `conda`:
 
-        # Activate the conda environment
-        conda activate uv-marimo
+      ```bash
+      # Create a new conda environment
+      conda create --name uv-marimo
 
-        # Install UV
-        conda install conda-forge::uv
-        ```
+      # Activate the conda environment
+      conda activate uv-marimo
 
-        Follow the rules laid out in the step above as you now have UV installed in your conda environment.
+      # Install UV
+      conda install conda-forge::uv
+      ```
+
+      Follow the rules laid out in the step above as you now have UV installed in your conda environment.
