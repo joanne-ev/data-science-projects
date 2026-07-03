@@ -9,7 +9,8 @@ dependencies = [
     "ipykernel>=7.3.0",
     "marimo>=0.23.13",
     "polars>=1.42.1",
+    "pydantic>=2.13.4",
     "pydantic-ai>=2.4.0",
-    "pydantic-ai-slim[huggingface]>=2.4.0",
+    "pydantic-ai-slim[duckduckgo,huggingface]>=2.4.0",
     "python-dotenv>=1.2.2",
 ]
