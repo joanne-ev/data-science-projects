@@ -18,6 +18,7 @@ def _():
     from pydantic_ai.common_tools.exa import ExaToolset
     from pydantic_ai.providers.openai import OpenAIProvider
     from pydantic_ai.common_tools.tavily import tavily_search_tool
+    from pydantic_ai.common_tools.duckduckgo import duckduckgo_search_tool
     from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
 
     load_dotenv(override=True)
@@ -32,40 +33,104 @@ def _():
         OpenAIChatModelSettings,
         OpenAIProvider,
         Optional,
+        csv,
+        duckduckgo_search_tool,
         os,
+        pl,
         tavily_search_tool,
     )
 
 
 @app.cell
-def _(BaseModel, Field, Literal, Optional):
-    class HeroineMovies(BaseModel):
-        movie_list: list[str] = Field(description='List of the names of movies with a superheroine lead. This list only contains movie names.')  
-
-    class BoxOffice(BaseModel):
-        name: str
-        cinematic_universe: Literal["DC", "Marvel"] = Field(description='Cinematic universe')
-        release_year: int = Field(description='Formatted as YYYY', examples=[2026, 2025])
-        release_month: Literal["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] = Field(description='Formatted as its 3-letter short name')
-        domestic_opening_weekend_box_office: float = Field(default=None, description='Domestic opening weekend box office revenue in USD', ge=0)
-        worldwide_opening_weekend_box_office: Optional[float] = Field(default=None, description="Worldwide opening weekend box office revenue in USD, if available.")
-        domestic_lifetime_box_office: float = Field(default=None, description='Total domestic lifetime box office revenue in USD', ge=0)
-        worldwide_lifetime_box_office: float = Field(default=None, description='Total worldwide lifetime box office revenue in USD (not opening weekend)', ge=0)
-
-    return BoxOffice, HeroineMovies
-
-
-@app.cell
-def _(
+async def _(
     Agent,
     AgentRunResult,
+    BaseModel,
+    Field,
     HeroineMovies,
+    Literal,
     OpenAIChatModel,
     OpenAIChatModelSettings,
     OpenAIProvider,
+    csv,
+    duckduckgo_search_tool,
     os,
+):
+    # Structured output
+    class CinematicUniverse(BaseModel):
+        name: str
+        cinematic_universe: Literal["DC", "Marvel"] = Field(description='Cinematic universe')
+        heroine_lead: Literal['Yes', 'No'] = Field(description='Describes ')
+
+    # AI agent 
+    async def cinematic_universe(movie: str):
+        provider = OpenAIProvider(
+            base_url='https://router.huggingface.co/v1',
+            api_key=os.getenv('HF_TOKEN'),
+        )
+
+        model = OpenAIChatModel(
+            'deepseek-ai/DeepSeek-V4-Flash:deepinfra',   # inference providers and cost can be found here: https://huggingface.co/inference/models?model=deepseek-ai/DeepSeek-V4-Flash
+            provider=provider,
+            settings=OpenAIChatModelSettings(temperature=0),
+        )
+
+        agent = Agent(
+            model=model,
+            output_type=CinematicUniverse,
+            tools=[duckduckgo_search_tool()],
+
+            instructions='''
+            Use the DuckDuckGo search tool to determine 
+            - which cinematic universe the movie is a part of and 
+            - whether the primary protagonist of the movie has a woman or superheroine 
+            '''
+        )
+
+        results: AgentRunResult[HeroineMovies] = await agent.run(f'Is {movie} apart of the DC or Marvel cinematic universe and is its main protagonist a woman?')
+
+        return results
+
+
+    # Running AI agent
+    agent = False
+
+    if agent:
+        # Create a list of elements from a CSV
+        with open('movies.csv') as file:
+            movie_reader = csv.reader(file)     # return a reader object which will iterate over lines in the CSV
+            next(movie_reader)  # skip header
+            title_list = [row[0] for row in movie_reader]   # create one list with all elements 
+
+        title_list = []
+
+        for title in title_list:
+            title_result = (await cinematic_universe(title)).output
+            title_dict = title_result.model_dump()
+            title_list.append(title_dict)
+    return
+
+
+@app.cell
+async def _(
+    Agent,
+    AgentRunResult,
+    BaseModel,
+    Field,
+    OpenAIChatModel,
+    OpenAIChatModelSettings,
+    OpenAIProvider,
+    csv,
+    os,
+    pl,
     tavily_search_tool,
 ):
+    # Structured output
+    class HeroineMovies(BaseModel):
+        movie_list: list[str] = Field(description='List of the names of movies with a superheroine lead. This list only contains movie names.')  
+
+
+    # AI agent
     async def superheroine_movies_agent():
         provider = OpenAIProvider(
             base_url='https://router.huggingface.co/v1',
@@ -103,19 +168,51 @@ def _(
 
         return results
 
-    return
+
+    # Running AI agent 
+    agent1 = False
+
+    if agent1: 
+        movies = await superheroine_movies_agent()
+        movies_dict = movies.output.model_dump()
+        pl.DataFrame(movies_dict).write_csv('movies.csv')
+
+        with open('movies-260704.csv') as file1:
+            # Return a reader object which will iterate over lines in the given csvfile.
+            reader = csv.reader(file1)
+            next(reader)  # skip header
+            movie_list = [row[0] for row in reader]
+    return HeroineMovies, movie_list
 
 
 @app.cell
-def _(
+async def _(
     Agent,
-    BoxOffice,
+    BaseModel,
     ExaToolset,
+    Field,
+    Literal,
     OpenAIChatModel,
     OpenAIChatModelSettings,
     OpenAIProvider,
+    Optional,
+    csv,
+    movie_list,
     os,
 ):
+    # Structured output
+    class BoxOffice(BaseModel):
+        name: str
+        cinematic_universe: Literal["DC", "Marvel"] = Field(description='Cinematic universe')
+        release_year: int = Field(description='Formatted as YYYY', examples=[2026, 2025])
+        release_month: Literal["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] = Field(description='Formatted as its 3-letter short name')
+        domestic_opening_weekend_box_office: float = Field(default=None, description='Domestic opening weekend box office revenue in USD', ge=0)
+        worldwide_opening_weekend_box_office: Optional[float] = Field(default=None, description="Worldwide opening weekend box office revenue in USD, if available.")
+        domestic_lifetime_box_office: float = Field(default=None, description='Total domestic lifetime box office revenue in USD', ge=0)
+        worldwide_lifetime_box_office: float = Field(default=None, description='Total worldwide lifetime box office revenue in USD (not opening weekend)', ge=0)
+
+
+    # AI agent
     async def box_office_agent(movie: str):
 
         provider = OpenAIProvider(
@@ -128,7 +225,7 @@ def _(
             provider=provider,
             settings=OpenAIChatModelSettings(temperature=0) # reducing randomness
         )
-    
+
         exa_search_tool = ExaToolset(
             api_key=os.getenv('EXA_API_KEY'),
             num_results=5,
@@ -136,14 +233,13 @@ def _(
             include_get_contents=False
         )
 
-
         agent: Agent[object, BoxOffice] = Agent(
             model=model,
 
             output_type=BoxOffice,
 
             toolsets=[exa_search_tool],
-        
+
             retries=3,
 
             instructions='''
@@ -173,38 +269,23 @@ def _(
 
         return results
 
-    return
 
+    # Running AI agent
+    agent2 = False
 
-@app.cell
-def _():
-    # movies = await superheroine_movies_agent()
-    # movies_dict = movies.output.model_dump()
-    # pl.DataFrame(movies_dict).write_csv('movies.csv')
+    if agent2: 
+        box_office_list: list[dict] = []
 
-    # with open('movies-260704.csv') as file:
-    #     # Return a reader object which will iterate over lines in the given csvfile.
-    #     reader = csv.reader(file)
-    #     next(reader)  # skip header
-    #     movie_list = [row[0] for row in reader]
-    return
+        for i, movie in enumerate(movie_list):
+            box_office = await box_office_agent(movie)
+            box_office_dict = box_office.output.model_dump()
+            box_office_list.append(box_office_dict)
+            print(f'Progress: {i+1}/{len(movie_list)}')
 
-
-@app.cell
-def _():
-    # box_office_list: list[dict] = []
-
-    # for i, movie in enumerate(movie_list):
-    #     box_office = await box_office_agent(movie)
-    #     box_office_dict = box_office.output.model_dump()
-    #     box_office_list.append(box_office_dict)
-    #     print(f'Progress: {i+1}/{len(movie_list)}')
-
-
-    # with open("box-office.csv", "w", newline="", encoding="utf-8") as f:
-    #     writer = csv.DictWriter(f, fieldnames=box_office_list[0].keys())
-    #     writer.writeheader()
-    #     writer.writerows(box_office_list)
+        with open("box-office.csv", "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=box_office_list[0].keys())
+            writer.writeheader()
+            writer.writerows(box_office_list)
     return
 
 
