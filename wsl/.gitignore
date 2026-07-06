@@ -1,0 +1,16 @@
+# Virtual environment
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# Marimo
+.marimo/
+__marimo__/
+*.marimo.py
+marimo-data/
+layouts
+
+# Cache
+__pycache__/
