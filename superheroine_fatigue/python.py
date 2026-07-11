@@ -9,8 +9,9 @@ def _():
     import polars as pl
     import polars.selectors as cs
     import altair as alt
+    import marimo as mo
 
-    return alt, cs, pl
+    return alt, cs, mo, pl
 
 
 @app.cell
@@ -26,7 +27,7 @@ def _(cs, pl):
             "Inflation Adjusted Budget": "Inflation Adjusted Budget ($)",
             "2.5x prod": "2.5 Production Costs ($)",
         })
-    
+
         # Removes everything that's NOT a digit
         .with_columns(
             cs.contains('$').str.replace_all(r'[^\d]', ''),
@@ -50,9 +51,9 @@ def _(cs, pl):
 @app.cell
 def _(cs, df, pl):
     def worldwide_gross_grouped_df(franchise: bool = False, year: bool = False):
-    
+
         group_by_vars: list[str] = ['Male/Female-led'] + ['Year'] * year + ['Franchise'] * franchise
-    
+
         return (
             df.clone()
             .group_by(group_by_vars)
@@ -77,35 +78,68 @@ def _(worldwide_gross_grouped_df):
     worldwide_gross_protagonists_year = worldwide_gross_grouped_df(year=True)
     worldwide_gross_protagonists_franchise = worldwide_gross_grouped_df(franchise=True)
     worldwide_gross_protagonists_year_franchise = worldwide_gross_grouped_df(year=True, franchise=True)
-    return (worldwide_gross_protagonists,)
+    return (
+        worldwide_gross_protagonists,
+        worldwide_gross_protagonists_franchise,
+        worldwide_gross_protagonists_year,
+        worldwide_gross_protagonists_year_franchise,
+    )
 
 
 @app.cell
-def _(alt, pl):
-    def worldwide_gross_protagonists_fig(data: pl.DataFrame, inflation_adjusted : bool = False):
+def _():
+    colours_domain: list[str] = ['Female', 'Male', 'Co-starring']
+    colours_css: list[str] = ['hotpink', 'skyblue', 'yellow']
+    return colours_css, colours_domain
+
+
+@app.cell
+def _(mo):
+    inflation_dropdown = mo.ui.dropdown(options=[True, False], value=True, label='Figures adjusted for inflation:')
+
+    inflation_dropdown
+    return (inflation_dropdown,)
+
+
+@app.cell
+def _(inflation_dropdown):
+    inflation_selection: str = inflation_dropdown.value
+    return (inflation_selection,)
+
+
+@app.cell
+def _(
+    alt,
+    colours_css: list[str],
+    colours_domain: list[str],
+    inflation_selection: str,
+    pl,
+    worldwide_gross_protagonists,
+):
+    def worldwide_gross_protagonists_fig(data: pl.DataFrame, inflation_adjusted: bool):
         var = ['Inflation Adjusted Worldwide Gross' if inflation_adjusted else 'Worldwide Gross'][0]
-    
+
         return (
             alt.Chart(data)
             .mark_arc()
             .encode(
                 theta=alt.Theta(f'{var} ($)', stack=True),
                 color=alt.Color(
-                    'Male/Female-led', 
-                    scale=alt.Scale(domain=sorted(data['Male/Female-led'].to_list()), range=['#CCCCCC', 'orange', 'brown']),
+                    shorthand='Male/Female-led', 
+                    scale=alt.Scale(domain=colours_domain, range=colours_css),
                     legend=alt.Legend(
                         title=['Protagonist Gender'],
                         titleLimit=300, # increasing the number of characters shown in the legend title
                         titleFontSize=13,
                         labelFontSize=12,
-                    
+
                         # To adjust location of legend
                         orient='none',
                         legendX=330,
                         legendY=100,
                         direction='vertical'
                     )
-            
+
                 ),
                 tooltip=['Male/Female-led', 'Percent (%)']
             )
@@ -119,12 +153,137 @@ def _(alt, pl):
             )
         )
 
-    return (worldwide_gross_protagonists_fig,)
+    worldwide_gross_protagonists_fig(data=worldwide_gross_protagonists, inflation_adjusted=inflation_selection)
+    return
 
 
 @app.cell
-def _(worldwide_gross_protagonists, worldwide_gross_protagonists_fig):
-    worldwide_gross_protagonists_fig(data=worldwide_gross_protagonists, inflation_adjusted=False)
+def _(
+    alt,
+    colours_css: list[str],
+    colours_domain: list[str],
+    inflation_selection: str,
+    pl,
+    worldwide_gross_protagonists_year,
+):
+    def worldwide_gross_protagonists_year_fig(data: pl.DataFrame, inflation_adjusted: bool):
+
+        var = ['Inflation Adjusted Worldwide Gross' if inflation_adjusted else 'Worldwide Gross'][0]
+
+        return (
+            alt.Chart(data)
+            .mark_line()
+            .encode(
+                x='Year',
+                y=f'{var} ($):Q',
+                shape=alt.Shape('Male/Female-led'),
+                color=alt.Color(shorthand='Male/Female-led',
+                                scale=alt.Scale(domain=colours_domain, range=colours_css),
+                                title='Protagonist Gender'),
+            )
+            .properties(
+                width = 600,
+                title=alt.TitleParams(
+                    text=f"{var.title()} by Protagonist Gender between {data['Year'].min()} and {data['Year'].max()}",
+                    fontSize=14,
+                    offset=20   # space between title and pie chart
+                )
+            )
+        )
+
+    worldwide_gross_protagonists_year_fig(worldwide_gross_protagonists_year, inflation_adjusted=inflation_selection)
+    return
+
+
+@app.cell
+def _(
+    alt,
+    inflation_selection: str,
+    pl,
+    worldwide_gross_protagonists_franchise,
+):
+    def worldwide_gross_protagonists_franchise_fig(data: pl.DataFrame, inflation_adjusted: bool):
+
+        var = ['Inflation Adjusted Worldwide Gross' if inflation_adjusted else 'Worldwide Gross'][0]
+
+        return (
+            alt.Chart(data)
+            .mark_bar()
+            .encode(
+                x=alt.X('Male/Female-led:N', axis=alt.Axis(labelAngle=0), title='Protagonist Gender'),
+                y=alt.Y(f'{var} ($):Q'),
+                color=alt.Color('Franchise:N',
+                                scale=alt.Scale(domain=['DC', 'Marvel'], 
+                                                range=['CornflowerBlue', 'coral'])),
+                xOffset='Franchise:N',
+                tooltip=['Male/Female-led:N', f'{var} ($):Q']
+            )
+            .properties(
+                width = 250,
+                title=alt.TitleParams(
+                    text=[f"{var.title()} by", "Protagonist Gender between DC and Marvel"],
+                    fontSize=14,
+                    offset=20   # space between title and pie chart
+                )
+            )
+        )
+
+    worldwide_gross_protagonists_franchise_fig(worldwide_gross_protagonists_franchise, inflation_adjusted=inflation_selection)
+    return
+
+
+@app.cell
+def _(
+    alt,
+    colours_css: list[str],
+    colours_domain: list[str],
+    inflation_selection: str,
+    pl,
+    worldwide_gross_protagonists_year_franchise,
+):
+    def worldwide_gross_protagonists_year_franchise_fig(data: pl.DataFrame, inflation_adjusted: bool):
+
+        var = ['Inflation Adjusted Worldwide Gross' if inflation_adjusted else 'Worldwide Gross'][0]
+
+        base = (
+            alt.Chart(data)
+            .mark_line()
+            .encode(
+                x='Year',
+                y=f'{var} ($)',
+                shape='Male/Female-led',
+                color=alt.Color(
+                    shorthand='Male/Female-led',
+                    scale=alt.Scale(domain=colours_domain, range=colours_css),
+                    title='Protagonist Gender',
+                    legend=alt.Legend(
+                        title=['Protagonist Gender'],
+                        titleLimit=300, # increasing the number of characters shown in the legend title
+                        titleFontSize=13,
+                        labelFontSize=12,
+
+                        # To adjust location of legend
+                        orient='none',
+                        legendX=650,
+                        legendY=300,
+                        direction='vertical'
+                    )
+                ),
+            )
+            .properties(width=600,)
+        )
+
+        dc = base.transform_filter(alt.FieldEqualPredicate(field='Franchise', equal='DC'))
+        marvel = base.transform_filter(alt.FieldEqualPredicate(field='Franchise', equal='Marvel'))
+
+        return (
+            alt.vconcat(dc, marvel)
+            .properties(title=alt.TitleParams(text=f"{var.title()} by Protagonist Gender between {data['Year'].min()} and {data['Year'].max()} for DC (top) and Marvel (bottom)", 
+                        offset=25, 
+                        fontSize=16))
+        )
+
+    worldwide_gross_protagonists_year_franchise_fig(worldwide_gross_protagonists_year_franchise, inflation_adjusted=inflation_selection)
     return
 
 
