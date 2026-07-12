@@ -4,6 +4,61 @@ __generated_with = "0.23.9"
 app = marimo.App(width="columns")
 
 
+@app.cell(hide_code=True)
+def _():
+    import marimo as mo
+    import polars as pl
+    import polars.selectors as cs
+    import altair as alt
+
+    return alt, cs, mo, pl
+
+
+@app.cell
+def _(pl):
+    from urllib.error import URLError
+
+    def import_data(latest_season:int = 25):
+        dfs: list[pl.DataFrame] =[]
+
+        try: 
+            for i in range(23, (latest_season+1)):
+                df: pl.DataFrame = pl.read_csv(f"https://codeberg.org/joanne_ev/data-science-projects/raw/branch/project/wsl/wsl/data/wsl-20{i}-UTC.csv").with_columns(pl.lit(f"{i}/{i+1}").alias("Season"))
+                dfs.append(df)
+
+        except URLError as e:
+            print(f'Network error: {e.reason}')
+
+        except ValueError:
+            print('CSVs are not being read as Polars DataFrames')
+
+        return pl.concat(dfs)
+
+    return (import_data,)
+
+
+@app.cell
+def _(pl):
+    def total_games(team:str, data:pl.DataFrame):
+        games: list[int] = []
+
+        for season in data['Season'].unique().to_list():
+            count: int = (
+                data
+                .filter(
+                    pl.col('Season').eq(season),
+                    (pl.col('Home Team').eq(team) | pl.col('Away Team').eq(team))
+                )
+                .shape[0]
+            )
+
+            games.append(count)
+
+        return sum(games)
+
+    return (total_games,)
+
+
 @app.cell(column=0, hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -51,17 +106,6 @@ def _(mo):
     3. Consistency throughout seasons
     """)
     return
-
-
-@app.cell(hide_code=True)
-def _():
-    import marimo as mo
-    import polars as pl
-    import polars.selectors as cs
-    import altair as alt
-    from functions import import_data, total_games
-
-    return alt, cs, import_data, mo, pl, total_games
 
 
 @app.cell(hide_code=True)
